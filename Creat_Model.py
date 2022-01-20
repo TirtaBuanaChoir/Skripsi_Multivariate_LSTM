@@ -7,6 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1HWcHyfM26clextg44OzkJ4LRZnxJKsMJ
 """
 
+import os
 import numpy as np
 import tensorflow as tf
 import sys
@@ -16,6 +17,7 @@ from pylab import rcParams
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from sklearn.model_selection import train_test_split
+#from tensorflow import keras
 from keras.models import Sequential
 from pandas.plotting import register_matplotlib_converters
 from keras.layers import Dense, LSTM, Dropout
@@ -124,11 +126,13 @@ plt.show();
 # Output Model
 import pickle
 
-with open('model/lstm3.pkl', 'wb') as f:
-    pickle.dump(model, f)
+model.save(os.path.join(os.path.dirname(__file__),'Model/lstm3.pkl'))
 
-with open('model/scaler3.pkl', 'wb') as f:
-    pickle.dump(f_transformer, f)
+#with open(os.path.join(os.path.dirname(__file__),'Model/lstm3.pkl'), 'wb') as f:
+#    pickle.dump(model, f)
 
-with open('model/scaler3_2.pkl', 'wb') as f:
-    pickle.dump(kelembaban_2_transformer, f)
+#with open(os.path.join(os.path.dirname(__file__),'Model/scaler3.pkl'), 'wb') as f:
+#    pickle.dump(f_transformer, f)
+
+#with open(os.path.join(os.path.dirname(__file__),'Model/scaler3_2.pkl'), 'wb') as f:
+#    pickle.dump(kelembaban_2_transformer, f)

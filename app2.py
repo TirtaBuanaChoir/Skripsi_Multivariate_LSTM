@@ -1,3 +1,5 @@
+import os
+from tensorflow import keras
 from flask import Flask, render_template, jsonify
 from sqlalchemy import create_engine
 from sklearn.preprocessing import RobustScaler
@@ -10,7 +12,7 @@ import scipy.stats as stats
 
 app2 = Flask(__name__)
 
-connection_url = 'mysql+pymysql://root:@localhost/Data_Bulan_3-5'
+connection_url = 'mysql+pymysql://cadangan:cadangan12@103.102.153.194/db_dan'
 connection = create_engine(connection_url)
 
 
@@ -35,33 +37,31 @@ def get_recent_data():
     # global scaler2
     global cache
     if cache is False:
-        lstm = pickle.load(open('model/lstm3.pkl', 'rb'))
+        lstm = keras.models.load_model(os.path.join(os.path.dirname(__file__),'Model/lstm3.pkl'))
+#        lstm = pickle.load(open('Model/lstm3.pkl', 'rb'))
         # scaler = pickle.load(open('model/scaler3.pkl', 'rb'))
         # scaler2 = pickle.load(open('model/scaler3_2.pkl', 'rb'))
         cache = True
 
-    kelembaban = pd.read_sql("SELECT CONCAT(tanggal, ' ', jam) AS waktu, kelembaban_tanah "
-                             "FROM data_kel_tanah "
-                             "WHERE id_alat = 'K6' and tanggal like '2020-04-16' and jam BETWEEN '00:00:01' AND '00:03:00'  "
-                             "ORDER BY nomor DESC "
+    kelembaban = pd.read_sql("SELECT waktu, h2 AS kelembaban_tanah "
+                             "FROM logtanah "
+                             "ORDER BY id DESC "
                              "LIMIT 31",
                              con=connection)
     kelembaban['waktu'] = pd.to_datetime(kelembaban['waktu'])
     kelembaban = kelembaban.set_index('waktu').sort_values('waktu')
 
-    suhu_tanah = pd.read_sql("SELECT CONCAT(tanggal, ' ', jam) AS waktu, suhu_tanah "
-                             "FROM data_su_tanah "
-                             "WHERE id_alat = 'S4' and tanggal like '2020-04-16' and jam BETWEEN '00:00:01' AND '00:03:00'   "
-                             "ORDER BY nomor DESC "
+    suhu_tanah = pd.read_sql("SELECT waktu, s2 AS suhu_tanah "
+                             "FROM logtanah "
+                             "ORDER BY id DESC "
                              "LIMIT 31",
                              con=connection)
     suhu_tanah['waktu'] = pd.to_datetime(suhu_tanah['waktu'])
     suhu_tanah = suhu_tanah.set_index('waktu').sort_values('waktu')
 
-    suhu_permukaan = pd.read_sql("SELECT CONCAT(tanggal, ' ', jam) AS waktu, suhu_tanah AS suhu_permukaan "
-                                 "FROM data_su_tanah "
-                                 "WHERE id_alat = 'S5' and tanggal like '2020-04-16' and jam BETWEEN '00:00:01' AND '00:03:00'   "
-                                 "ORDER BY nomor DESC "
+    suhu_permukaan = pd.read_sql("SELECT waktu, t AS suhu_permukaan "
+                                 "FROM logtanah "
+                                 "ORDER BY id DESC "
                                  "LIMIT 31",
                                  con=connection)
     suhu_permukaan['waktu'] = pd.to_datetime(suhu_permukaan['waktu'])
@@ -74,6 +74,8 @@ def get_recent_data():
     data = pd.merge_asof(left=data, right=suhu_permukaan, left_index=True, right_index=True)
     print('data', data)
     data_asli = data.iloc[-1]
+    print(data_asli["suhu_permukaan"])
+    data_asli["suhu_permukaan"] = np.array(data_asli["suhu_permukaan"]).astype(np.float)
     data_bahan = data.drop(data_asli.name)
 
     def create_dataset(X, y, time_steps=1):
@@ -185,8 +187,8 @@ def get_recent_data():
                                  data_asli['suhu_tanah'] > bound['suhu_tanah']['upper'])
 
     prediksi_suhu_permukaan = float(0)
-    is_outlier_suhu_permukaan = bool(data_asli['suhu_permukaan'] < bound['suhu_permukaan']['lower'] or
-                                     data_asli['suhu_permukaan'] > bound['suhu_permukaan']['upper'])
+#    is_outlier_suhu_permukaan = bool(data_asli['suhu_permukaan'] < bound['suhu_permukaan']['lower'] or
+ #                                    data_asli['suhu_permukaan'] > bound['suhu_permukaan']['upper'])
     waktu = data_asli.name
 
     response = pd.DataFrame({
@@ -196,27 +198,27 @@ def get_recent_data():
         'suhu_permukaan': [data_asli['suhu_permukaan']],
         'is_outlier_kelembaban_tanah': [is_outlier_kelembaban_tanah],
         'is_outlier_suhu_tanah': [is_outlier_suhu_tanah],
-        'is_outlier_suhu_permukaan': [is_outlier_suhu_permukaan],
+  #      'is_outlier_suhu_permukaan': [is_outlier_suhu_permukaan],
         'prediksi_kelembaban_tanah': [prediksi_kelembaban_tanah],
         'prediksi_suhu_tanah': [prediksi_suhu_tanah],
         'prediksi_suhu_permukaan': [prediksi_suhu_permukaan]
     })
 
-    filter1 = pd.read_sql("SELECT * "
-                         "FROM filter1 "
-                         "ORDER BY id DESC "
-                         "LIMIT 1",
-                         con=connection)
-    if len(filter1) == 0:
-        response.to_sql('filter1', connection, if_exists='append', index=False)
-        print("kosong")
-    else:
-        filter1 = filter1.iloc[0]
-        if filter1['kelembaban_tanah'] != data_asli['kelembaban_tanah'] or filter1['suhu_tanah'] != data_asli['suhu_tanah'] or filter1['suhu_permukaan'] != data_asli['suhu_permukaan']:
-            response.to_sql('filter1', connection, if_exists='append', index=False)
-            print('tidak sama')
-        else:
-            print('sama')
+    #filter1 = pd.read_sql("SELECT * "
+#                         "FROM filter1 "
+#                         "ORDER BY id DESC "
+ #                        "LIMIT 1",
+  #                       con=connection)
+   # if len(filter1) == 0:
+        #response.to_sql('filter1', connection, if_exists='append', index=False)
+    #    print("kosong")
+#    else:
+        #filter1 = filter1.iloc[0]
+        #if filter1['kelembaban_tanah'] != data_asli['kelembaban_tanah'] or filter1['suhu_tanah'] != data_asli['suhu_tanah'] or filter1['suhu_permukaan'] != data_asli['suhu_permukaan']:
+        #    response.to_sql('filter1', connection, if_exists='append', index=False)
+        #    print('tidak sama')
+        #else:
+        #    print('sama')
 
     print(bound['kelembaban_tanah']['upper'])
 
@@ -241,15 +243,14 @@ def get_recent_data():
         'suhu_permukaan': {
             'asli': float(data_asli['suhu_permukaan']),
             'prediksi': float(0),
-            'anomali': bool(data_asli['suhu_permukaan'] < bound['suhu_permukaan']['lower'] or
-                            data_asli['suhu_permukaan'] > bound['suhu_permukaan']['upper']),
+#            'anomali': bool(data_asli['suhu_permukaan'] < bound['suhu_permukaan']['lower'] or
+#                            data_asli['suhu_permukaan'] > bound['suhu_permukaan']['upper']),
 
             'upper': float(0),
             'lower': float(0)
 
         },
     })
-
 
 if __name__ == "__main__":
     app2.run(debug=True, host='0.0.0.0', port=8000)
